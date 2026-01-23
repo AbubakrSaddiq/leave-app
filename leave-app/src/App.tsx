@@ -53,14 +53,23 @@ function LoginButton() {
 
   const handleLogin = async () => {
     const { data, error } = await supabase.auth.signInWithPassword({
-      // email: "test@company.com",
+      // email: "test3@company.com",
       // password: "Test123!",
 
-      email: "Director@company.com",
-      password: "Director123!",
+      // email: "Director.finance@company.com",
+      // password: "Director123!",
 
       // email: "hr@company.com",
       // password: "Hr123!",
+
+      // email: "hr1@company.com",
+      // password: "hr123!",
+
+      // email: "admin@company.com",
+      // password: "Admin123!",
+
+      email: "testfinance@company.com",
+      password: "Test123!",
     });
 
     if (error) {
@@ -124,11 +133,7 @@ function DashboardTabs({ role }: { role: string }) {
         </TabPanel>
 
         <TabPanel>
-          <LeaveApplicationForm
-            onSuccess={() => {
-              alert("✅ Leave application submitted successfully!");
-            }}
-          />
+          <LeaveApplicationForm />
         </TabPanel>
 
         <TabPanel>

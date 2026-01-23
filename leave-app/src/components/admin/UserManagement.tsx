@@ -1,5 +1,5 @@
 // ============================================
-// USER MANAGEMENT - COMPLETE FRESH START
+// USER MANAGEMENT - COMPLETE WITH FIXED EDIT & DELETE
 // File: src/components/admin/UserManagement.tsx
 // ============================================
 
@@ -35,6 +35,13 @@ import {
   CardHeader,
   CardBody,
   Heading,
+  AlertDialog,
+  AlertDialogBody,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogContent,
+  AlertDialogOverlay,
+  useDisclosure,
 } from "@chakra-ui/react";
 import { EditIcon, DeleteIcon, AddIcon } from "@chakra-ui/icons";
 import { supabase } from "@/lib/supabase";
@@ -63,6 +70,83 @@ interface Department {
 }
 
 // ============================================
+// DELETE CONFIRMATION DIALOG
+// ============================================
+
+interface DeleteConfirmDialogProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onConfirm: () => void;
+  userName: string;
+  isDeleting: boolean;
+}
+
+function DeleteConfirmDialog({
+  isOpen,
+  onClose,
+  onConfirm,
+  userName,
+  isDeleting,
+}: DeleteConfirmDialogProps) {
+  const cancelRef = React.useRef<HTMLButtonElement>(null);
+
+  return (
+    <AlertDialog
+      isOpen={isOpen}
+      leastDestructiveRef={cancelRef}
+      onClose={onClose}
+    >
+      <AlertDialogOverlay>
+        <AlertDialogContent>
+          <AlertDialogHeader fontSize="lg" fontWeight="bold">
+            Delete User
+          </AlertDialogHeader>
+
+          <AlertDialogBody>
+            <VStack spacing={3} align="start">
+              <Text>
+                Are you sure you want to delete{" "}
+                <Text as="span" fontWeight="bold" color="red.600">
+                  {userName}
+                </Text>
+                ?
+              </Text>
+              <Box
+                bg="red.50"
+                p={3}
+                borderRadius="md"
+                borderLeft="4px solid"
+                borderLeftColor="red.500"
+              >
+                <Text fontSize="sm" color="red.800">
+                  ⚠️ This action cannot be undone. All leave applications and
+                  balances for this user will be deleted.
+                </Text>
+              </Box>
+            </VStack>
+          </AlertDialogBody>
+
+          <AlertDialogFooter>
+            <Button ref={cancelRef} onClick={onClose} isDisabled={isDeleting}>
+              Cancel
+            </Button>
+            <Button
+              colorScheme="red"
+              onClick={onConfirm}
+              ml={3}
+              isLoading={isDeleting}
+              loadingText="Deleting..."
+            >
+              Delete User
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialogOverlay>
+    </AlertDialog>
+  );
+}
+
+// ============================================
 // USER MANAGEMENT COMPONENT
 // ============================================
 
@@ -74,6 +158,14 @@ export function UserManagement() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [userToDelete, setUserToDelete] = useState<User | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const {
+    isOpen: isDeleteDialogOpen,
+    onOpen: onDeleteDialogOpen,
+    onClose: onDeleteDialogClose,
+  } = useDisclosure();
 
   // Form state
   const [formData, setFormData] = useState({
@@ -131,8 +223,8 @@ export function UserManagement() {
     fetchUsers();
     fetchDepartments();
 
-    // Auto-refresh every 5 seconds
-    const interval = setInterval(fetchUsers, 5000);
+    // Auto-refresh every 10 seconds
+    const interval = setInterval(fetchUsers, 10000);
     return () => clearInterval(interval);
   }, []);
 
@@ -142,124 +234,43 @@ export function UserManagement() {
 
   const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault();
-
-    // Validation
-    if (!formData.email || !formData.full_name || !formData.password) {
-      toast({
-        title: "Missing required fields",
-        description: "Email, name, and password are required",
-        status: "warning",
-        duration: 3000,
-      });
-      return;
-    }
-
-    if (formData.password.length < 6) {
-      toast({
-        title: "Password too short",
-        description: "Password must be at least 6 characters",
-        status: "warning",
-        duration: 3000,
-      });
-      return;
-    }
+    setLoading(true);
 
     try {
-      console.log("Step 1: Creating auth user...");
-
-      // Step 1: Create authentication user
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: formData.email,
-        password: formData.password,
-        options: {
-          emailRedirectTo: undefined, // Prevent email confirmation
-        },
-      });
-
-      if (authError) {
-        console.error("Auth error:", authError);
-        throw new Error(`Authentication error: ${authError.message}`);
-      }
-
-      if (!authData.user) {
-        throw new Error("No user returned from signup");
-      }
-
-      const userId = authData.user.id;
-      console.log("Auth user created with ID:", userId);
-
-      // Step 2: Insert user profile into database
-      console.log("Step 2: Creating database profile...");
-
-      const { error: dbError } = await supabase.from("users").insert([
+      const { data, error } = await supabase.functions.invoke(
+        "admin-create-user",
         {
-          id: userId,
-          email: formData.email,
-          full_name: formData.full_name,
-          role: formData.role,
-          department_id: formData.department_id || null,
-          hire_date: formData.hire_date,
-          is_active: true,
+          body: {
+            email: formData.email,
+            password: formData.password,
+            user_metadata: {
+              full_name: formData.full_name,
+              role: formData.role,
+              department_id: formData.department_id,
+              hire_date: formData.hire_date,
+            },
+          },
         },
-      ]);
+      );
 
-      if (dbError) {
-        console.error("Database error:", dbError);
-        throw new Error(`Database error: ${dbError.message}`);
-      }
+      if (error) throw error;
 
-      console.log("User profile created successfully");
-
-      // Step 3: Allocate leave balances
-      console.log("Step 3: Allocating leave balances...");
-
-      try {
-        const { error: allocateError } = await supabase.rpc(
-          "allocate_leave_for_user",
-          {
-            p_user_id: userId,
-            p_year: new Date().getFullYear(),
-          }
-        );
-
-        if (allocateError) {
-          console.warn("Leave allocation warning:", allocateError);
-        } else {
-          console.log("Leave balances allocated");
-        }
-      } catch (allocError) {
-        console.warn("Non-critical: Failed to allocate leave", allocError);
-      }
-
-      // Success!
       toast({
-        title: "✅ User created successfully",
-        description: `${formData.full_name} has been added`,
+        title: "Success",
+        description: "User created and confirmed automatically.",
         status: "success",
-        duration: 4000,
       });
 
-      // Reset form and close modal
-      setFormData({
-        email: "",
-        full_name: "",
-        password: "",
-        role: "staff",
-        department_id: "",
-        hire_date: new Date().toISOString().split("T")[0],
-      });
       setShowCreateModal(false);
-
-      // Refresh user list
       fetchUsers();
-    } catch (error: any) {
-      console.error("Create user error:", error);
+    } catch (err: any) {
       toast({
-        title: "❌ Failed to create user",
-        description: error.message || "Unknown error occurred",
+        title: "Error",
+        description: err.message || "Failed to call edge function",
         status: "error",
-        duration: 6000,
       });
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -271,7 +282,7 @@ export function UserManagement() {
     e.preventDefault();
 
     if (!selectedUser) return;
-
+    setLoading(true);
     try {
       const { error } = await supabase
         .from("users")
@@ -283,10 +294,14 @@ export function UserManagement() {
         })
         .eq("id", selectedUser.id);
 
-      if (error) throw error;
+      if (error) {
+        console.error("Update error:", error);
+        throw error;
+      }
 
       toast({
-        title: "✅ User updated",
+        title: "✅ User updated successfully",
+        description: `${formData.full_name} has been updated`,
         status: "success",
         duration: 3000,
       });
@@ -301,6 +316,8 @@ export function UserManagement() {
         status: "error",
         duration: 5000,
       });
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -308,30 +325,50 @@ export function UserManagement() {
   // DELETE USER
   // ============================================
 
-  const handleDeleteUser = async (user: User) => {
-    if (!window.confirm(`Delete ${user.full_name}? This cannot be undone.`)) {
-      return;
-    }
+  const handleDeleteClick = (user: User) => {
+    setUserToDelete(user);
+    onDeleteDialogOpen();
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!userToDelete) return;
+
+    setIsDeleting(true);
 
     try {
-      const { error } = await supabase.from("users").delete().eq("id", user.id);
+      // console.log("Deleting user:", userToDelete.id);
 
-      if (error) throw error;
+      // Delete from database (cascades to related records)
+      const { error: dbError } = await supabase
+        .from("users")
+        .delete()
+        .eq("id", userToDelete.id);
+
+      if (dbError) {
+        console.error("Database delete error:", dbError);
+        throw dbError;
+      }
 
       toast({
         title: "✅ User deleted",
+        description: `${userToDelete.full_name} has been removed`,
         status: "success",
         duration: 3000,
       });
 
+      onDeleteDialogClose();
+      setUserToDelete(null);
       fetchUsers();
     } catch (error: any) {
+      console.error("Delete user error:", error);
       toast({
         title: "❌ Delete failed",
         description: error.message,
         status: "error",
         duration: 5000,
       });
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -349,7 +386,7 @@ export function UserManagement() {
       if (error) throw error;
 
       toast({
-        title: `User ${user.is_active ? "deactivated" : "activated"}`,
+        title: `✅ User ${user.is_active ? "deactivated" : "activated"}`,
         status: "success",
         duration: 2000,
       });
@@ -478,6 +515,8 @@ export function UserManagement() {
                           aria-label="Edit user"
                           icon={<EditIcon />}
                           size="sm"
+                          colorScheme="blue"
+                          variant="ghost"
                           onClick={() => openEditModal(user)}
                         />
                         <IconButton
@@ -486,7 +525,7 @@ export function UserManagement() {
                           size="sm"
                           colorScheme="red"
                           variant="ghost"
-                          onClick={() => handleDeleteUser(user)}
+                          onClick={() => handleDeleteClick(user)}
                         />
                       </HStack>
                     </Td>
@@ -713,6 +752,15 @@ export function UserManagement() {
           </form>
         </ModalContent>
       </Modal>
+
+      {/* DELETE CONFIRMATION DIALOG */}
+      <DeleteConfirmDialog
+        isOpen={isDeleteDialogOpen}
+        onClose={onDeleteDialogClose}
+        onConfirm={handleDeleteConfirm}
+        userName={userToDelete?.full_name || ""}
+        isDeleting={isDeleting}
+      />
     </Card>
   );
 }

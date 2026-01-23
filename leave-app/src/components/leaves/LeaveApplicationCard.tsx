@@ -1,5 +1,5 @@
 // ============================================
-// Leave Application Card Component - UPDATED
+// Leave Application Card Component - COMPLETE
 // ============================================
 import React from "react";
 import {
@@ -31,6 +31,10 @@ export function LeaveApplicationCard({
   onReject,
   showActions = false,
 }: LeaveApplicationCardProps) {
+  // ============================================
+  // HELPER FUNCTIONS
+  // ============================================
+
   const getStatusColor = (status: LeaveStatus) => {
     switch (status) {
       case "approved":
@@ -76,35 +80,108 @@ export function LeaveApplicationCard({
     return endDate.toISOString().split("T")[0];
   };
 
-  // Get user name - check multiple possible locations
+  // Get user name - try multiple data structures
   const getUserName = () => {
-    // Try different possible data structures
-    if (application.user?.full_name) return application.user.full_name;
-    if ((application as any).user?.full_name)
-      return (application as any).user.full_name;
-    if ((application as any).users?.full_name)
-      return (application as any).users.full_name;
+    console.log("Getting user name for application:", application);
+    console.log("User data:", application.user);
+    console.log(
+      "Full application object:",
+      JSON.stringify(application, null, 2)
+    );
 
-    // Fallback: try to get from user_id
+    // Try all possible locations
+    if (application.user?.full_name) {
+      console.log(
+        "Found name in application.user.full_name:",
+        application.user.full_name
+      );
+      return application.user.full_name;
+    }
+
+    const appAny = application as any;
+
+    if (appAny.user?.full_name) {
+      console.log(
+        "Found name in appAny.user.full_name:",
+        appAny.user.full_name
+      );
+      return appAny.user.full_name;
+    }
+
+    if (appAny.users?.full_name) {
+      console.log(
+        "Found name in appAny.users.full_name:",
+        appAny.users.full_name
+      );
+      return appAny.users.full_name;
+    }
+
+    if (appAny.full_name) {
+      console.log("Found name in appAny.full_name:", appAny.full_name);
+      return appAny.full_name;
+    }
+
+    console.warn("No user name found, returning User");
     return "User";
   };
 
+  // Get user email
+  const getUserEmail = () => {
+    if (application.user?.email) return application.user.email;
+    const appAny = application as any;
+    if (appAny.user?.email) return appAny.user.email;
+    if (appAny.users?.email) return appAny.users.email;
+    return null;
+  };
+
+  // Get user department
+  const getUserDepartment = () => {
+    if (application.user?.department?.name) {
+      return `${application.user.department.name} (${application.user.department.code})`;
+    }
+    const appAny = application as any;
+    if (appAny.user?.department?.name) {
+      return `${appAny.user.department.name} (${appAny.user.department.code})`;
+    }
+    if (appAny.users?.department?.name) {
+      return `${appAny.users.department.name} (${appAny.users.department.code})`;
+    }
+    return null;
+  };
+
+  const userName = getUserName();
+  const userEmail = getUserEmail();
+  const userDepartment = getUserDepartment();
+
+  // ============================================
+  // RENDER
+  // ============================================
+
   return (
-    <Card mb={4} boxShadow="sm" _hover={{ boxShadow: "md" }}>
+    <Card
+      mb={4}
+      boxShadow="sm"
+      _hover={{ boxShadow: "md" }}
+      transition="all 0.2s"
+    >
       <CardBody>
         <VStack align="stretch" spacing={4}>
           {/* Header */}
-          <HStack justify="space-between">
+          <HStack justify="space-between" flexWrap="wrap">
             <HStack spacing={3}>
               <Badge
                 colorScheme={getLeaveTypeColor(application.leave_type)}
                 fontSize="sm"
+                px={3}
+                py={1}
               >
                 {application.leave_type.toUpperCase()}
               </Badge>
               <Badge
                 colorScheme={getStatusColor(application.status)}
                 fontSize="sm"
+                px={3}
+                py={1}
               >
                 {formatStatus(application.status)}
               </Badge>
@@ -115,20 +192,36 @@ export function LeaveApplicationCard({
           </HStack>
 
           {/* User Info */}
-          <Box>
+          <Box bg="gray.50" p={3} borderRadius="md">
             <Text
               fontSize="xs"
               color="gray.600"
               textTransform="uppercase"
               fontWeight="semibold"
+              mb={1}
             >
-              Applicant
+              👤 Applicant
             </Text>
-            <Text fontWeight="medium" fontSize="md">
-              {getUserName()}
+            <Text fontWeight="bold" fontSize="lg" color="gray.800">
+              {userName}
             </Text>
+            {userEmail && (
+              <Text fontSize="sm" color="gray.600">
+                {userEmail}
+              </Text>
+            )}
+            {userDepartment && (
+              <Text fontSize="sm" color="blue.600" fontWeight="medium" mt={1}>
+                🏢 {userDepartment}
+              </Text>
+            )}
             {application.user_id && (
-              <Text fontSize="xs" color="gray.400" fontFamily="monospace">
+              <Text
+                fontSize="xs"
+                color="gray.400"
+                fontFamily="monospace"
+                mt={1}
+              >
                 ID: {application.user_id.slice(0, 8)}...
               </Text>
             )}
@@ -139,68 +232,76 @@ export function LeaveApplicationCard({
           {/* Leave Details - Grid Layout */}
           <Grid templateColumns="repeat(2, 1fr)" gap={4}>
             <GridItem>
-              <Text
-                fontSize="xs"
-                color="gray.600"
-                textTransform="uppercase"
-                fontWeight="semibold"
-              >
-                Start Date
-              </Text>
-              <Text fontWeight="medium">
-                {formatDate(application.start_date)}
-              </Text>
+              <VStack align="start" spacing={1}>
+                <Text
+                  fontSize="xs"
+                  color="gray.600"
+                  textTransform="uppercase"
+                  fontWeight="semibold"
+                >
+                  📅 Start Date
+                </Text>
+                <Text fontWeight="medium" fontSize="md">
+                  {formatDate(application.start_date)}
+                </Text>
+              </VStack>
             </GridItem>
 
             <GridItem>
-              <Text
-                fontSize="xs"
-                color="gray.600"
-                textTransform="uppercase"
-                fontWeight="semibold"
-              >
-                End Date
-              </Text>
-              <Text fontWeight="medium">
-                {formatDate(application.end_date)}
-              </Text>
+              <VStack align="start" spacing={1}>
+                <Text
+                  fontSize="xs"
+                  color="gray.600"
+                  textTransform="uppercase"
+                  fontWeight="semibold"
+                >
+                  📅 End Date
+                </Text>
+                <Text fontWeight="medium" fontSize="md">
+                  {formatDate(application.end_date)}
+                </Text>
+              </VStack>
             </GridItem>
 
             <GridItem>
-              <Text
-                fontSize="xs"
-                color="gray.600"
-                textTransform="uppercase"
-                fontWeight="semibold"
-              >
-                Resumption Date
-              </Text>
-              <Text fontWeight="medium" color="green.600">
-                {formatDate(getResumptionDate())}
-              </Text>
+              <VStack align="start" spacing={1}>
+                <Text
+                  fontSize="xs"
+                  color="gray.600"
+                  textTransform="uppercase"
+                  fontWeight="semibold"
+                >
+                  🔄 Resumption Date
+                </Text>
+                <Text fontWeight="medium" fontSize="md" color="green.600">
+                  {formatDate(getResumptionDate())}
+                </Text>
+              </VStack>
             </GridItem>
 
             <GridItem>
-              <Text
-                fontSize="xs"
-                color="gray.600"
-                textTransform="uppercase"
-                fontWeight="semibold"
-              >
-                Duration
-              </Text>
-              <Text fontWeight="medium">
-                {application.working_days} working day
-                {application.working_days !== 1 ? "s" : ""}
-              </Text>
+              <VStack align="start" spacing={1}>
+                <Text
+                  fontSize="xs"
+                  color="gray.600"
+                  textTransform="uppercase"
+                  fontWeight="semibold"
+                >
+                  ⏱️ Duration
+                </Text>
+                <Text fontWeight="medium" fontSize="md">
+                  {application.working_days} working day
+                  {application.working_days !== 1 ? "s" : ""}
+                </Text>
+              </VStack>
             </GridItem>
           </Grid>
 
           {/* Submitted Date */}
           {application.submitted_at && (
-            <Box bg="gray.50" p={2} borderRadius="md">
-              <Text fontSize="xs" color="gray.600">
-                Submitted on {formatDate(application.submitted_at)}
+            <Box bg="blue.50" p={2} borderRadius="md">
+              <Text fontSize="xs" color="blue.700" fontWeight="medium">
+                📤 Submitted on {formatDate(application.submitted_at)}
               </Text>
             </Box>
           )}
@@ -213,17 +314,23 @@ export function LeaveApplicationCard({
                 color="gray.600"
                 textTransform="uppercase"
                 fontWeight="semibold"
-                mb={1}
+                mb={2}
               >
-                Reason
+                📝 Reason
               </Text>
-              <Text fontSize="sm" bg="gray.50" p={3} borderRadius="md">
+              <Text
+                fontSize="sm"
+                bg="gray.50"
+                p={3}
+                borderRadius="md"
+                lineHeight="tall"
+              >
                 {application.reason}
               </Text>
             </Box>
           )}
 
-          {/* Comments */}
+          {/* Director Comments */}
           {application.director_comments && (
             <Box
               bg="blue.50"
@@ -232,20 +339,21 @@ export function LeaveApplicationCard({
               borderLeft="4px solid"
               borderLeftColor="blue.500"
             >
-              <Text fontSize="xs" fontWeight="bold" color="blue.800" mb={1}>
+              <Text fontSize="xs" fontWeight="bold" color="blue.800" mb={2}>
                 💼 DIRECTOR'S COMMENTS
               </Text>
-              <Text fontSize="sm" color="blue.700">
+              <Text fontSize="sm" color="blue.900" mb={2}>
                 {application.director_comments}
               </Text>
               {application.director_approved_at && (
-                <Text fontSize="xs" color="blue.600" mt={2}>
-                  Approved on {formatDate(application.director_approved_at)}
+                <Text fontSize="xs" color="blue.600">
+                  ✓ Approved on {formatDate(application.director_approved_at)}
                 </Text>
               )}
             </Box>
           )}
 
+          {/* HR Comments */}
           {application.hr_comments && (
             <Box
               bg="purple.50"
@@ -254,15 +362,15 @@ export function LeaveApplicationCard({
               borderLeft="4px solid"
               borderLeftColor="purple.500"
             >
-              <Text fontSize="xs" fontWeight="bold" color="purple.800" mb={1}>
+              <Text fontSize="xs" fontWeight="bold" color="purple.800" mb={2}>
                 👔 HR'S COMMENTS
               </Text>
-              <Text fontSize="sm" color="purple.700">
+              <Text fontSize="sm" color="purple.900" mb={2}>
                 {application.hr_comments}
               </Text>
               {application.hr_approved_at && (
-                <Text fontSize="xs" color="purple.600" mt={2}>
-                  Approved on {formatDate(application.hr_approved_at)}
+                <Text fontSize="xs" color="purple.600">
+                  ✓ Approved on {formatDate(application.hr_approved_at)}
                 </Text>
               )}
             </Box>
@@ -278,8 +386,9 @@ export function LeaveApplicationCard({
                   colorScheme="green"
                   onClick={() => onApprove?.(application.id)}
                   flex={1}
+                  leftIcon={<span>✓</span>}
                 >
-                  ✓ Approve
+                  Approve
                 </Button>
                 <Button
                   size="sm"
@@ -287,8 +396,9 @@ export function LeaveApplicationCard({
                   variant="outline"
                   onClick={() => onReject?.(application.id)}
                   flex={1}
+                  leftIcon={<span>✕</span>}
                 >
-                  ✕ Reject
+                  Reject
                 </Button>
               </HStack>
             </>
@@ -298,227 +408,3 @@ export function LeaveApplicationCard({
     </Card>
   );
 }
-
-// // ============================================
-// // Leave Application Card Component
-// // Displays individual leave application
-// // ============================================
-
-// import React from "react";
-// import {
-//   Box,
-//   HStack,
-//   VStack,
-//   Text,
-//   Badge,
-//   Button,
-//   Icon,
-//   Divider,
-//   useDisclosure,
-// } from "@chakra-ui/react";
-// import {
-//   FiCalendar,
-//   FiUser,
-//   FiClock,
-//   FiCheckCircle,
-//   FiXCircle,
-// } from "react-icons/fi";
-// import type { LeaveApplication, LeaveStatus, LeaveType } from "@/types/models";
-// import { formatDate, formatDateRange } from "@/utils/date.utils";
-// import { ApprovalModal } from "./ApprovalModal";
-
-// const LEAVE_TYPE_CONFIG: Record<LeaveType, { label: string; color: string }> = {
-//   annual: { label: "Annual", color: "blue" },
-//   casual: { label: "Casual", color: "green" },
-//   sick: { label: "Sick", color: "red" },
-//   maternity: { label: "Maternity", color: "purple" },
-//   paternity: { label: "Paternity", color: "orange" },
-// };
-
-// const STATUS_CONFIG: Record<LeaveStatus, { label: string; color: string }> = {
-//   draft: { label: "Draft", color: "gray" },
-//   pending_director: { label: "Pending Director", color: "yellow" },
-//   pending_hr: { label: "Pending HR", color: "orange" },
-//   approved: { label: "Approved", color: "green" },
-//   rejected: { label: "Rejected", color: "red" },
-// };
-
-// interface LeaveApplicationCardProps {
-//   application: LeaveApplication;
-//   showActions?: boolean;
-//   onApprove?: (id: string, comments?: string) => void;
-//   onReject?: (id: string, comments: string) => void;
-// }
-
-// export const LeaveApplicationCard: React.FC<LeaveApplicationCardProps> = ({
-//   application,
-//   showActions = false,
-//   onApprove,
-//   onReject,
-// }) => {
-//   const {
-//     isOpen: isApproveOpen,
-//     onOpen: onApproveOpen,
-//     onClose: onApproveClose,
-//   } = useDisclosure();
-//   const {
-//     isOpen: isRejectOpen,
-//     onOpen: onRejectOpen,
-//     onClose: onRejectClose,
-//   } = useDisclosure();
-
-//   const leaveConfig = LEAVE_TYPE_CONFIG[application.leave_type];
-//   const statusConfig = STATUS_CONFIG[application.status];
-
-//   const handleApprove = (comments?: string) => {
-//     if (onApprove) {
-//       onApprove(application.id, comments);
-//       onApproveClose();
-//     }
-//   };
-
-//   const handleReject = (comments: string) => {
-//     if (onReject) {
-//       onReject(application.id, comments);
-//       onRejectClose();
-//     }
-//   };
-
-//   return (
-//     <>
-//       <Box
-//         bg="white"
-//         borderRadius="lg"
-//         boxShadow="md"
-//         p={5}
-//         borderLeft="4px solid"
-//         borderLeftColor={`${leaveConfig.color}.500`}
-//         _hover={{ boxShadow: "lg" }}
-//         transition="all 0.2s"
-//       >
-//         <VStack spacing={4} align="stretch">
-//           {/* Header */}
-//           <HStack justify="space-between" align="flex-start">
-//             <VStack align="flex-start" spacing={1}>
-//               <HStack>
-//                 <Badge colorScheme={leaveConfig.color} fontSize="sm">
-//                   {leaveConfig.label}
-//                 </Badge>
-//                 <Badge colorScheme={statusConfig.color} fontSize="sm">
-//                   {statusConfig.label}
-//                 </Badge>
-//               </HStack>
-//               <Text fontSize="xs" color="gray.500">
-//                 {application.application_number}
-//               </Text>
-//             </VStack>
-
-//             <Text fontSize="sm" fontWeight="bold" color="blue.600">
-//               {application.working_days} days
-//             </Text>
-//           </HStack>
-
-//           <Divider />
-
-//           {/* User Info */}
-//           <HStack spacing={2}>
-//             <Icon as={FiUser} color="gray.500" />
-//             <Text fontSize="sm" fontWeight="medium">
-//               {(application as any).user?.full_name || "Unknown User"}
-//             </Text>
-//           </HStack>
-
-//           {/* Date Range */}
-//           <HStack spacing={2}>
-//             <Icon as={FiCalendar} color="gray.500" />
-//             <Text fontSize="sm">
-//               {formatDateRange(application.start_date, application.end_date)}
-//             </Text>
-//           </HStack>
-
-//           {/* Submitted Date */}
-//           {application.submitted_at && (
-//             <HStack spacing={2}>
-//               <Icon as={FiClock} color="gray.500" />
-//               <Text fontSize="sm" color="gray.600">
-//                 Submitted {formatDate(application.submitted_at)}
-//               </Text>
-//             </HStack>
-//           )}
-
-//           {/* Reason */}
-//           <Box bg="gray.50" p={3} borderRadius="md">
-//             <Text fontSize="xs" fontWeight="bold" color="gray.700" mb={1}>
-//               Reason:
-//             </Text>
-//             <Text fontSize="sm" color="gray.700">
-//               {application.reason}
-//             </Text>
-//           </Box>
-
-//           {/* Comments if rejected */}
-//           {application.status === "rejected" && (
-//             <Box
-//               bg="red.50"
-//               p={3}
-//               borderRadius="md"
-//               borderLeft="3px solid"
-//               borderLeftColor="red.500"
-//             >
-//               <Text fontSize="xs" fontWeight="bold" color="red.700" mb={1}>
-//                 Rejection Comments:
-//               </Text>
-//               <Text fontSize="sm" color="red.700">
-//                 {application.director_comments ||
-//                   application.hr_comments ||
-//                   "No comments provided"}
-//               </Text>
-//             </Box>
-//           )}
-
-//           {/* Action Buttons */}
-//           {showActions && (
-//             <HStack spacing={3} pt={2}>
-//               <Button
-//                 leftIcon={<Icon as={FiCheckCircle} />}
-//                 colorScheme="green"
-//                 size="sm"
-//                 onClick={onApproveOpen}
-//                 flex={1}
-//               >
-//                 Approve
-//               </Button>
-//               <Button
-//                 leftIcon={<Icon as={FiXCircle} />}
-//                 colorScheme="red"
-//                 variant="outline"
-//                 size="sm"
-//                 onClick={onRejectOpen}
-//                 flex={1}
-//               >
-//                 Reject
-//               </Button>
-//             </HStack>
-//           )}
-//         </VStack>
-//       </Box>
-
-//       {/* Modals */}
-//       <ApprovalModal
-//         isOpen={isApproveOpen}
-//         onClose={onApproveClose}
-//         onConfirm={handleApprove}
-//         type="approve"
-//         applicationNumber={application.application_number}
-//       />
-
-//       <ApprovalModal
-//         isOpen={isRejectOpen}
-//         onClose={onRejectClose}
-//         onConfirm={handleReject}
-//         type="reject"
-//         applicationNumber={application.application_number}
-//       />
-//     </>
-//   );
-// };

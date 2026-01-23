@@ -1,36 +1,81 @@
 // ============================================
-// My Leave Applications Component
-// Shows user's submitted applications
+// My Leave Applications Component - COMPLETE
 // ============================================
-
-import React, { useState } from "react";
+import React from "react";
 import {
   Box,
   Heading,
   Text,
+  Spinner,
   VStack,
   HStack,
   Select,
-  Spinner,
-  Alert,
-  AlertIcon,
-  AlertDescription,
+  Button,
   SimpleGrid,
 } from "@chakra-ui/react";
-import { useMyLeaveApplications } from "@/hooks/useLeaveApplication";
+import { useQuery } from "@tanstack/react-query";
+import { getLeaveApplications } from "@/api/leaves.api";
 import { LeaveApplicationCard } from "./LeaveApplicationCard";
+import { supabase } from "@/lib/supabase";
 import type { LeaveStatus } from "@/types/models";
 
-export const MyLeaveApplications: React.FC = () => {
-  const [statusFilter, setStatusFilter] = useState<LeaveStatus | "all">("all");
+export function MyLeaveApplications() {
+  const [currentUserId, setCurrentUserId] = React.useState<string | null>(null);
+  const [statusFilter, setStatusFilter] = React.useState<LeaveStatus | "all">(
+    "all",
+  );
 
-  const queryParams = statusFilter === "all" ? {} : { status: statusFilter };
-  const { data, isLoading, error } = useMyLeaveApplications(queryParams);
+  // Get current user ID on mount
+  React.useEffect(() => {
+    const fetchCurrentUser = async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
 
+      if (user) {
+        console.log("Current user ID:", user.id);
+        setCurrentUserId(user.id);
+      } else {
+        console.warn("No authenticated user found");
+      }
+    };
+
+    fetchCurrentUser();
+  }, []);
+
+  // Fetch leave applications for current user ONLY
+  const { data, isLoading, error, refetch } = useQuery({
+    queryKey: ["my-leave-applications", currentUserId, statusFilter],
+    queryFn: () => {
+      console.log("Fetching applications for user:", currentUserId);
+
+      return getLeaveApplications({
+        user_id: currentUserId!, // CRITICAL: Filter by current user only
+        status: statusFilter === "all" ? undefined : statusFilter,
+        sort_by: "submitted_at",
+        sort_order: "desc",
+      });
+    },
+    enabled: !!currentUserId, // Only run query when we have user ID
+  });
+
+  // Show loading state while fetching user ID
+  if (!currentUserId) {
+    return (
+      <Box textAlign="center" py={10}>
+        <Spinner size="lg" />
+        <Text mt={4} color="gray.600">
+          Loading user data...
+        </Text>
+      </Box>
+    );
+  }
+
+  // Show loading state while fetching applications
   if (isLoading) {
     return (
       <Box textAlign="center" py={10}>
-        <Spinner size="xl" color="blue.500" thickness="4px" />
+        <Spinner size="lg" />
         <Text mt={4} color="gray.600">
           Loading your applications...
         </Text>
@@ -38,55 +83,86 @@ export const MyLeaveApplications: React.FC = () => {
     );
   }
 
+  // Show error state
   if (error) {
     return (
-      <Alert status="error" borderRadius="md">
-        <AlertIcon />
-        <AlertDescription>
-          Failed to load applications. Please try again.
-        </AlertDescription>
-      </Alert>
+      <Box textAlign="center" py={10}>
+        <Text color="red.500" fontSize="lg" mb={4}>
+          ❌ Failed to load your applications
+        </Text>
+        <Text color="gray.600" mb={4}>
+          {(error as Error).message}
+        </Text>
+        <Button colorScheme="blue" onClick={() => refetch()}>
+          Try Again
+        </Button>
+      </Box>
     );
   }
 
   const applications = data?.data || [];
+  const totalApplications = data?.pagination.total || 0;
 
   return (
-    <VStack spacing={6} align="stretch">
-      <HStack justify="space-between" align="center">
+    <VStack align="stretch" spacing={6}>
+      {/* Header */}
+      <HStack justify="space-between" flexWrap="wrap">
         <Box>
-          <Heading size="lg" mb={2}>
-            My Leave Applications
-          </Heading>
-          <Text color="gray.600">
-            View and track your submitted leave requests
+          <Heading size="md">My Leave Applications</Heading>
+          <Text color="gray.600" fontSize="sm" mt={1}>
+            {totalApplications} application{totalApplications !== 1 ? "s" : ""}{" "}
+            found
           </Text>
         </Box>
 
-        <Select
-          value={statusFilter}
-          onChange={(e) =>
-            setStatusFilter(e.target.value as LeaveStatus | "all")
-          }
-          width="200px"
-          size="lg"
-        >
-          <option value="all">All Applications</option>
-          <option value="pending_director">Pending Director</option>
-          <option value="pending_hr">Pending HR</option>
-          <option value="approved">Approved</option>
-          <option value="rejected">Rejected</option>
-        </Select>
+        {/* Filter by status */}
+        <HStack spacing={3}>
+          <Text fontSize="sm" color="gray.600">
+            Filter:
+          </Text>
+          <Select
+            value={statusFilter}
+            onChange={(e) =>
+              setStatusFilter(e.target.value as LeaveStatus | "all")
+            }
+            size="sm"
+            width="200px"
+          >
+            <option value="all">All Status</option>
+            <option value="pending_director">Pending Director</option>
+            <option value="pending_hr">Pending HR</option>
+            <option value="approved">Approved</option>
+            <option value="rejected">Rejected</option>
+          </Select>
+          <Button size="sm" variant="outline" onClick={() => refetch()}>
+            🔄 Refresh
+          </Button>
+        </HStack>
       </HStack>
 
+      {/* Applications List */}
       {applications.length === 0 ? (
-        <Alert status="info" borderRadius="md">
-          <AlertIcon />
-          <AlertDescription>
-            No leave applications found. Submit your first application to get
-            started!
-          </AlertDescription>
-        </Alert>
+        <Box
+          textAlign="center"
+          py={16}
+          bg="gray.50"
+          borderRadius="lg"
+          borderWidth="2px"
+          borderStyle="dashed"
+          borderColor="gray.300"
+        >
+          <Text fontSize="3xl" mb={2}>
+            📋
+          </Text>
+          <Text fontSize="lg" fontWeight="medium" color="gray.700" mb={2}>
+            No applications found
+          </Text>
+          <Text color="gray.500" fontSize="sm">
+            {statusFilter === "all"
+              ? "You haven't submitted any leave applications yet"
+              : `No ${statusFilter.replace("_", " ")} applications found`}
+          </Text>
+        </Box>
       ) : (
         <SimpleGrid columns={{ base: 1, md: 2, lg: 3 }} spacing={6}>
           {applications.map((application) => (
@@ -100,4 +176,4 @@ export const MyLeaveApplications: React.FC = () => {
       )}
     </VStack>
   );
-};
+}
