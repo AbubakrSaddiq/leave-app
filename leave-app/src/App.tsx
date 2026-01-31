@@ -53,35 +53,50 @@ function LoginButton() {
 
   const handleLogin = async () => {
     const { data, error } = await supabase.auth.signInWithPassword({
+      // email: "admin@company.com",
+      // password: "Admin123!",
+
+      // Staff user credntials
+
       // email: "test3@company.com",
       // password: "Test123!",
 
-      email: "staff.rld@company.com",
-      password: "Test123!",
+      // email: "staff.rld@company.com",
+      // password: "Test123!",
 
       // email: "test.research.lab@company.com",
       // password: "Test123!",
 
+      // email: "testfinance@company.com",
+      // password: "Test123!",
+
+      // email: "sharon.may@company.com",
+      // password: "Test123!",
+
+      email: "staff.ict@company.com",
+      password: "Test123!",
+
+      // Director credentials
+
       // email: "Director.rld@company.com",
       // password: "Director123!",
+
+      // email: "director.budget@company.com",
+      // password: "Director123!",
+
+      // email: "director.finance@company.com",
+      // password: "Director123!",
+
+      // email: "director.ict@company.com",
+      // password: "Director123!",
+
+      // Hr credentials
 
       // email: "hr@company.com",
       // password: "Hr123!",
 
       // email: "hr1@company.com",
       // password: "hr123!",
-
-      // email: "admin@company.com",
-      // password: "Admin123!",
-
-      // email: "sharon.may@company.com",
-      // password: "Test123!",
-
-      //   email: "director.budget@company.com",
-      // password: "Director123!",
-
-      // email: "testfinance@company.com",
-      // password: "Test123!",
     });
 
     if (error) {
@@ -102,6 +117,13 @@ function LoginButton() {
         <VStack align="flex-start" spacing={2}>
           <Text fontWeight="bold">👤 {profile?.full_name || user.email}</Text>
           <Badge colorScheme="purple">{profile?.role}</Badge>
+          {profile?.department && (
+            <HStack spacing={2}>
+              <Badge colorScheme="grey" fontSize="xs" variant="outline">
+                {profile.department.code}
+              </Badge>
+            </HStack>
+          )}
           <Button size="sm" onClick={handleLogout} variant="outline">
             Logout
           </Button>

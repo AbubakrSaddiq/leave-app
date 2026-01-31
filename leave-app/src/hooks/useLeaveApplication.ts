@@ -9,8 +9,8 @@ import {
   getLeaveApplication,
   createLeaveApplication,
   validateLeaveApplication,
-  approveLeaveApplication,
-  rejectLeaveApplication,
+  // approveLeaveApplication,
+  updateLeaveStatus,
 } from '@/api/leaves.api';
 import type { CreateLeaveApplicationDto, LeaveStatus, LeaveType } from '@/types/models';
 
@@ -106,20 +106,64 @@ export const useCreateLeaveApplication = () => {
   });
 };
 
+// Approve LEave Application
+// export const useApproveLeaveApplication = () => {
+//   const queryClient = useQueryClient();
+//   const toast = useToast();
+
+//   return useMutation({
+//     mutationFn: ({ id, comments }: { id: string; comments?: string }) =>
+//       approveLeaveApplication(id, comments),
+//     onSuccess: (data) => {
+//       queryClient.invalidateQueries({ queryKey: ['leave-applications'] });
+//       queryClient.invalidateQueries({ queryKey: ['leave-application', data.id] });
+
+//       toast({
+//         title: 'Application Approved',
+//         description: `Application ${data.application_number} has been approved.`,
+//         status: 'success',
+//         duration: 5000,
+//         isClosable: true,
+//       });
+//     },
+//     onError: (error: Error) => {
+//       toast({
+//         title: 'Approval Failed',
+//         description: error.message,
+//         status: 'error',
+//         duration: 5000,
+//         isClosable: true,
+//       });
+//     },
+//   });
+// };
+
 export const useApproveLeaveApplication = () => {
   const queryClient = useQueryClient();
   const toast = useToast();
 
   return useMutation({
-    mutationFn: ({ id, comments }: { id: string; comments?: string }) =>
-      approveLeaveApplication(id, comments),
+    // mutationFn now accepts id, status, and comments
+    mutationFn: ({ 
+      id, 
+      status, 
+      comments 
+    }: { 
+      id: string; 
+      status: 'approved' | 'pending_hr'; 
+      comments: string 
+    }) => updateLeaveStatus(id, status, comments),
+    
     onSuccess: (data) => {
+      // Refresh the list and the specific application
       queryClient.invalidateQueries({ queryKey: ['leave-applications'] });
       queryClient.invalidateQueries({ queryKey: ['leave-application', data.id] });
+      // Refresh balances in case this was the final approval
+      queryClient.invalidateQueries({ queryKey: ['leave-balances'] });
 
       toast({
         title: 'Application Approved',
-        description: `Application ${data.application_number} has been approved.`,
+        description: `Application ${data.application_number} has been updated to ${data.status.replace('_', ' ')}.`,
         status: 'success',
         duration: 5000,
         isClosable: true,
@@ -137,13 +181,48 @@ export const useApproveLeaveApplication = () => {
   });
 };
 
+// Reject Leave Application
+
+// export const useRejectLeaveApplication = () => {
+//   const queryClient = useQueryClient();
+//   const toast = useToast();
+
+//   return useMutation({
+//     mutationFn: ({ id, comments }: { id: string; comments: string }) =>
+//       rejectLeaveApplication(id, comments),
+//     onSuccess: (data) => {
+//       queryClient.invalidateQueries({ queryKey: ['leave-applications'] });
+//       queryClient.invalidateQueries({ queryKey: ['leave-application', data.id] });
+
+//       toast({
+//         title: 'Application Rejected',
+//         description: `Application ${data.application_number} has been rejected.`,
+//         status: 'info',
+//         duration: 5000,
+//         isClosable: true,
+//       });
+//     },
+//     onError: (error: Error) => {
+//       toast({
+//         title: 'Rejection Failed',
+//         description: error.message,
+//         status: 'error',
+//         duration: 5000,
+//         isClosable: true,
+//       });
+//     },
+//   });
+// };
+
 export const useRejectLeaveApplication = () => {
   const queryClient = useQueryClient();
   const toast = useToast();
 
   return useMutation({
+    // We call the consolidated function and force 'rejected'
     mutationFn: ({ id, comments }: { id: string; comments: string }) =>
-      rejectLeaveApplication(id, comments),
+      updateLeaveStatus(id, 'rejected', comments), 
+    
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['leave-applications'] });
       queryClient.invalidateQueries({ queryKey: ['leave-application', data.id] });

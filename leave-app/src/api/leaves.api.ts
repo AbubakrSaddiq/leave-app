@@ -394,79 +394,137 @@ export async function approveLeaveApplication(
 }
 
 // ============================================
-// REJECT LEAVE APPLICATION
+// REJECT/UPDATE LEAVE APPLICATION
 // ============================================
 
-export async function rejectLeaveApplication(
+// export async function rejectLeaveApplication(
+//   id: string,
+//   comments: string
+// ): Promise<LeaveApplication> {
+//   try {
+//     console.log('Rejecting leave application:', id);
+
+//     const {
+//       data: { user },
+//     } = await supabase.auth.getUser();
+
+//     if (!user) {
+//       throw new Error('Not authenticated');
+//     }
+
+//     // Get current application
+//     const { data: application, error: fetchError } = await supabase
+//       .from('leave_applications')
+//       .select('*')
+//       .eq('id', id)
+//       .single();
+
+//     if (fetchError) throw fetchError;
+
+//     let updateData: any = {
+//       status: 'rejected' as LeaveStatus,
+//     };
+
+//     // Add comments based on who is rejecting
+//     if (application.status === 'pending_director') {
+//       updateData.director_approved_by = user.id;
+//       updateData.director_approved_at = new Date().toISOString();
+//       updateData.director_comments = comments;
+//     } else if (application.status === 'pending_hr') {
+//       updateData.hr_approved_by = user.id;
+//       updateData.hr_approved_at = new Date().toISOString();
+//       updateData.hr_comments = comments;
+//     }
+
+//     const { data, error } = await supabase
+//       .from('leave_applications')
+//       .update(updateData)
+//       .eq('id', id)
+//       .select(
+//         `
+//         *,
+//         user:users!leave_applications_user_id_fkey (
+//           id,
+//           full_name,
+//           email,
+//           role,
+//           department:departments!users_department_id_fkey (
+//             id,
+//             name,
+//             code
+//           )
+//         )
+//         `
+//       )
+//       .single();
+
+//     if (error) {
+//       console.error('Error rejecting leave application:', error);
+//       throw error;
+//     }
+
+//     console.log('Leave application rejected:', data);
+//     return data;
+//   } catch (error: any) {
+//     console.error('Error in rejectLeaveApplication:', error);
+//     throw new Error(error.message || 'Failed to reject leave application');
+//   }
+// }
+
+export async function updateLeaveStatus(
   id: string,
+  status: 'approved' | 'rejected' | 'pending_hr',
   comments: string
 ): Promise<LeaveApplication> {
   try {
-    console.log('Rejecting leave application:', id);
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+    if (!authUser) throw new Error('Not authenticated');
 
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user) {
-      throw new Error('Not authenticated');
-    }
-
-    // Get current application
-    const { data: application, error: fetchError } = await supabase
-      .from('leave_applications')
-      .select('*')
-      .eq('id', id)
+    // 1. Fetch user role to know which comment column to fill
+    const { data: profile } = await supabase
+      .from('users')
+      .select('role')
+      .eq('id', authUser.id)
       .single();
 
-    if (fetchError) throw fetchError;
+    const isDirector = profile?.role === 'director';
+    const isHR = profile?.role === 'hr' || profile?.role === 'admin';
 
-    let updateData: any = {
-      status: 'rejected' as LeaveStatus,
+    // 2. Prepare the update payload based on the schema columns
+    const now = new Date().toISOString();
+    let updateData: any = { 
+      status, 
+      updated_at: now 
     };
 
-    // Add comments based on who is rejecting
-    if (application.status === 'pending_director') {
-      updateData.director_approved_by = user.id;
-      updateData.director_approved_at = new Date().toISOString();
+    if (isDirector) {
       updateData.director_comments = comments;
-    } else if (application.status === 'pending_hr') {
-      updateData.hr_approved_by = user.id;
-      updateData.hr_approved_at = new Date().toISOString();
+      updateData.director_approved_by = authUser.id;
+      updateData.director_approved_at = now;
+    } else if (isHR) {
       updateData.hr_comments = comments;
+      updateData.hr_approved_by = authUser.id;
+      updateData.hr_approved_at = now;
     }
 
+    // 3. Execute the update
     const { data, error } = await supabase
       .from('leave_applications')
       .update(updateData)
       .eq('id', id)
-      .select(
-        `
+      .select(`
         *,
         user:users!leave_applications_user_id_fkey (
-          id,
-          full_name,
-          email,
-          role,
-          department:departments!users_department_id_fkey (
-            id,
-            name,
-            code
-          )
+          id, full_name, email, role,
+          department:departments!users_department_id_fkey (id, name, code)
         )
-        `
-      )
+      `)
       .single();
 
-    if (error) {
-      console.error('Error rejecting leave application:', error);
-      throw error;
-    }
-
-    console.log('Leave application rejected:', data);
+    if (error) throw error;
     return data;
   } catch (error: any) {
-    console.error('Error in rejectLeaveApplication:', error);
-    throw new Error(error.message || 'Failed to reject leave application');
+    console.error('Update Status Error:', error.message);
+    throw new Error(error.message || 'Failed to update leave status');
   }
 }

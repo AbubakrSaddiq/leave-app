@@ -48,8 +48,25 @@ export const ApprovalQueue: React.FC<ApprovalQueueProps> = ({ role }) => {
   const approveMutation = useApproveLeaveApplication();
   const rejectMutation = useRejectLeaveApplication();
 
+  // const handleApprove = async (id: string, comments?: string) => {
+  //   await approveMutation.mutateAsync({ id, comments });
+  // };
+
   const handleApprove = async (id: string, comments?: string) => {
-    await approveMutation.mutateAsync({ id, comments });
+    const nextStatus = role === "director" ? "pending_hr" : "approved";
+
+    try {
+      await approveMutation.mutateAsync({
+        id,
+        status: nextStatus as any, // Pass the new status here
+        comments,
+      });
+
+      // Optional: Force a refresh if invalidation is slow
+      // queryClient.invalidateQueries({ queryKey: ['leave-applications'] });
+    } catch (err) {
+      console.error("Approval failed:", err);
+    }
   };
 
   const handleReject = async (id: string, comments: string) => {
@@ -80,7 +97,7 @@ export const ApprovalQueue: React.FC<ApprovalQueueProps> = ({ role }) => {
 
   const applications = data?.data || [];
   const pendingCount = applications.filter(
-    (app) => app.status === pendingStatus
+    (app) => app.status === pendingStatus,
   ).length;
 
   return (

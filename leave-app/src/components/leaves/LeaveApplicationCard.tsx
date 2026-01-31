@@ -14,9 +14,11 @@ import {
   Divider,
   Grid,
   GridItem,
+  useDisclosure,
 } from "@chakra-ui/react";
 import { formatDate } from "@/utils/date.utils";
 import type { LeaveApplication, LeaveStatus, LeaveType } from "@/types/models";
+import { ApprovalModal } from "./ApprovalModal";
 
 interface LeaveApplicationCardProps {
   application: LeaveApplication;
@@ -34,6 +36,25 @@ export function LeaveApplicationCard({
   // ============================================
   // HELPER FUNCTIONS
   // ============================================
+
+  const { isOpen, onOpen, onClose } = useDisclosure();
+  const [actionType, setActionType] = React.useState<"approve" | "reject">(
+    "approve",
+  );
+
+  const handleOpenModal = (type: "approve" | "reject") => {
+    setActionType(type);
+    onOpen();
+  };
+
+  const handleConfirmAction = (comments: string) => {
+    if (actionType === "approve") {
+      onApprove?.(application.id, comments);
+    } else {
+      onReject?.(application.id, comments);
+    }
+    onClose();
+  };
 
   const getStatusColor = (status: LeaveStatus) => {
     switch (status) {
@@ -391,7 +412,8 @@ export function LeaveApplicationCard({
           )}
 
           {/* Actions */}
-          {showActions && (
+
+          {/* {showActions && (
             <>
               <Divider />
               <HStack spacing={3}>
@@ -416,7 +438,40 @@ export function LeaveApplicationCard({
                 </Button>
               </HStack>
             </>
+          )} */}
+
+          {showActions && (
+            <>
+              <Divider />
+              <HStack spacing={3} p={4}>
+                <Button
+                  size="sm"
+                  colorScheme="green"
+                  onClick={() => handleOpenModal("approve")}
+                  flex={1}
+                >
+                  Approve
+                </Button>
+                <Button
+                  size="sm"
+                  colorScheme="red"
+                  variant="outline"
+                  onClick={() => handleOpenModal("reject")}
+                  flex={1}
+                >
+                  Reject
+                </Button>
+              </HStack>
+            </>
           )}
+
+          <ApprovalModal
+            isOpen={isOpen}
+            onClose={onClose}
+            onConfirm={handleConfirmAction}
+            type={actionType}
+            applicationNumber={application.application_number}
+          />
         </VStack>
       </CardBody>
     </Card>
