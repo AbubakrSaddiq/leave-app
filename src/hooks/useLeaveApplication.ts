@@ -106,37 +106,6 @@ export const useCreateLeaveApplication = () => {
   });
 };
 
-// Approve LEave Application
-// export const useApproveLeaveApplication = () => {
-//   const queryClient = useQueryClient();
-//   const toast = useToast();
-
-//   return useMutation({
-//     mutationFn: ({ id, comments }: { id: string; comments?: string }) =>
-//       approveLeaveApplication(id, comments),
-//     onSuccess: (data) => {
-//       queryClient.invalidateQueries({ queryKey: ['leave-applications'] });
-//       queryClient.invalidateQueries({ queryKey: ['leave-application', data.id] });
-
-//       toast({
-//         title: 'Application Approved',
-//         description: `Application ${data.application_number} has been approved.`,
-//         status: 'success',
-//         duration: 5000,
-//         isClosable: true,
-//       });
-//     },
-//     onError: (error: Error) => {
-//       toast({
-//         title: 'Approval Failed',
-//         description: error.message,
-//         status: 'error',
-//         duration: 5000,
-//         isClosable: true,
-//       });
-//     },
-//   });
-// };
 
 export const useApproveLeaveApplication = () => {
   const queryClient = useQueryClient();

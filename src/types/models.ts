@@ -151,6 +151,7 @@ export interface CreateLeaveApplicationDto {
   start_date: string;
   end_date: string;
   reason: string;
+  working_days: number;
 }
 
 export interface ApprovalActionDto {
