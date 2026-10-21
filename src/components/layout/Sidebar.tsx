@@ -180,7 +180,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             {!isCollapsed && (
               <VStack spacing={0} align="flex-start">
                 <Text fontSize="sm" fontWeight="bold" color="naseni.primary">
-                  NASENI
+                  LMS
                 </Text>
                 <Text fontSize="10px" color="naseni.gray.500">
                   Leave System

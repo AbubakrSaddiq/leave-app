@@ -121,7 +121,7 @@ export const LoginPage: React.FC = () => {
               fontWeight="800"
               letterSpacing="-0.02em"
             >
-              NASENI Leave Portal
+              Leave Portal
             </Heading>
           </VStack>
 
@@ -183,7 +183,7 @@ export const LoginPage: React.FC = () => {
         <VStack spacing={2} mt={{ base: 6, md: 8 }}>
           <Divider maxW="200px" borderColor="gray.200" />
           <Text fontSize="xs" color="gray.400" textAlign="center" pt={2}>
-            © {new Date().getFullYear()} NASENI.
+            © {new Date().getFullYear()}.
           </Text>
         </VStack>
       </Flex>
